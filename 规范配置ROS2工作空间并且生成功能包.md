@@ -161,3 +161,5 @@ ros2 run my_py_pkg my_py_node
 
 Bash
 ros2 pkg create --build-type ament_cmake my_new_pkg --node-name dummy_node --dependencies rclcpp
+
+在 ROS 2 中，ament_package() 必须、永远是 CMakeLists.txt 文件的最后一行。 放在它后面的任何代码都会被系统直接无视，甚至引发奇怪的编译错误。
