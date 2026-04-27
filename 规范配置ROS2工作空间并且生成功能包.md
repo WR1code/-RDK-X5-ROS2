@@ -507,3 +507,46 @@ echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 * 如果你改了 **Python 代码**（且没用 `symlink`）：必须重新 `colcon build`，因为它需要把新脚本复制到 `install`。
 
 **一句话总结：当你输入 `ros2 run` 时，系统就像个外卖员，他只去 `install` 这个“取餐点”拿东西，从来不进 `src` 这个“厨房”。**
+
+
+
+
+ldd指令
+1. 为什么需要它？
+当你写完一个 C++ 的 ROS 2 节点并编译成功后，它并不是一个“孤立”的文件。它在运行的时候需要去系统里翻找各种库文件，比如：
+
+ROS 2 的核心库（如 librclcpp.so）
+
+数学库（如 libm.so）
+
+标准 C++ 库（如 libstdc++.so）
+
+如果其中任何一个库找不到，你的程序就会报错：error while loading shared libraries: libxxx.so: cannot open shared object file。这时候，ldd 就是你的“排雷器”。
+
+2. 如何使用？
+使用方法非常简单，直接在终端输入 ldd 加上你的可执行文件路径即可。
+
+以你的 ROS 2 节点为例，你可以进入 install 文件夹试试：
+
+Bash
+cd ~/ros2_ws/install/my_cpp_pkg/lib/my_cpp_pkg/
+ldd my_cpp_node
+3. 如何阅读输出结果？
+运行命令后，你会看到类似下面的一串列表：
+
+Plaintext
+linux-vdso.so.1 (0x00007ffcc89e5000)
+librclcpp.so => /opt/ros/humble/lib/librclcpp.so (0x00007f8a...)
+libstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f8a...)
+libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8a...)
+/lib64/ld-linux-x86-64.so.2 => /lib64/ld-linux-x86-64.so.2 (0x00007f8a...)
+你需要关注的信息：
+
+左侧：程序需要的库文件名。
+
+中间 (=>)：系统实际找到该库的具体物理路径。
+
+右侧：该库加载到内存中的起始地址。
+
+⚠️ 危险信号：
+如果你看到某一行显示 not found，那就说明出大事了！你的程序运行必报错。这通常是因为你忘记 source 环境，或者某个依赖包没有安装
