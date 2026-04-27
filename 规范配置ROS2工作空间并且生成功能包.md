@@ -152,3 +152,12 @@ ros2 run my_py_pkg my_py_node
 * 格式为：`'终端命令名 = 模块路径:主函数'`。
 * 例如：`'my_py_node = my_py_pkg.my_py_node:main'`。如果不在这里注册，ROS 2 就无法将其识别为可执行节点。
 ```
+
+
+么才能让系统自动生成提示？（一个小技巧）
+如果你希望系统帮你把相关的代码结构和提示生成出来，你在创建包的时候，必须加上 --node-name（节点名）这个参数。
+
+比如，如果你运行这个命令：
+
+Bash
+ros2 pkg create --build-type ament_cmake my_new_pkg --node-name dummy_node --dependencies rclcpp
