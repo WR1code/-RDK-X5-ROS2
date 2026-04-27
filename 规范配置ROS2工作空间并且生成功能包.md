@@ -163,3 +163,10 @@ Bash
 ros2 pkg create --build-type ament_cmake my_new_pkg --node-name dummy_node --dependencies rclcpp
 
 在 ROS 2 中，ament_package() 必须、永远是 CMakeLists.txt 文件的最后一行。 放在它后面的任何代码都会被系统直接无视，甚至引发奇怪的编译错误。
+
+
+声明安装可执行文件的时候，要注意路径与实际的贴合
+
+我看到你的 test_c++_node.cpp 和 test_c++_node2.cpp 并没有直接放在 src 文件夹下，而是放在了 src 文件夹里面的一个名叫 test 的子文件夹里。
+
+所以，文件的真实路径是 src/test/test_c++_node.cpp，而刚才我们的 CMake 文件里写的是 src/test_c++_node.cpp，中间差了一层 test/ 目录，CMake 当然就找不到了。
