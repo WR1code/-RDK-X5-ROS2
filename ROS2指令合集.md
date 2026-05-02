@@ -158,7 +158,61 @@
     ```bash
     ros2 pkg executables <package_name>
     ```
+在 ROS2 中，`ros2 pkg create` 也就是创建功能包的命令，包含了非常丰富的参数。掌握这些参数可以帮你省去大量手动修改 `package.xml` 和 `CMakeLists.txt`（或 `setup.py`）的时间。
 
+以下是 `ros2 pkg create <package_name>` 后面可以跟的完整参数列表，为了方便理解，我将它们分为了三大类：**构建与依赖**、**代码生成**、**元数据配置**。
+
+### 一、 构建与依赖参数 (核心功能)
+
+这类参数决定了你的包用什么语言写，以及依赖哪些其他的库。
+
+| 参数 / 简写 | 作用说明 | 常见选项 / 示例 |
+| :--- | :--- | :--- |
+| `--build-type` | **[必选/极重要]** 指定包的构建系统。如果不加，ROS2 默认使用 `ament_cmake` (即 C++ 环境)。 | `ament_cmake` (C++推荐)<br>`ament_python` (Python推荐)<br>`cmake` (纯CMake项目) |
+| `--dependencies` / `-d` | **[常用]** 声明此包依赖的其他 ROS2 包。系统会自动将它们写入 `package.xml` 和构建脚本中。 | `-d rclcpp std_msgs sensor_msgs`<br>可以一次性跟多个包名，用空格隔开。 |
+| `--destination-directory` | 指定功能包创建的路径。如果不填，默认就在你当前所处的终端目录下创建。 | `--destination-directory ~/ros2_ws/src` |
+
+---
+
+### 二、 代码自动生成参数 (提效利器)
+
+如果你想在建包的同时，顺手把 Hello World 级别的节点或者库文件也建好，并自动配置好编译规则，用这两个参数：
+
+| 参数 | 作用说明 | 适用场景 |
+| :--- | :--- | :--- |
+| `--node-name` | 自动在包内生成一个基础的节点源文件（`.cpp` 或 `.py`），并**自动帮你写好** `CMakeLists.txt` 或 `setup.py` 里的可执行文件（Executable）注册代码。 | `--node-name my_first_node`<br>非常适合快速验证想法，省去手动注册节点的麻烦。 |
+| `--library-name` | 仅在 C++ (`ament_cmake`) 下有效。自动生成一个库文件（`.hpp` 和 `.cpp`）框架，并配置好导出规则。 | 开发底层算法或被其他包调用的共享库时使用。 |
+
+---
+
+### 三、 元数据配置参数 (工程规范)
+
+这些参数主要用于填充 `package.xml` 中的信息。在做大型项目或者准备开源、打比赛提交代码时，规范填写这些信息是基本功。
+
+| 参数 | 作用说明 | 示例 |
+| :--- | :--- | :--- |
+| `--license` | **[推荐]** 声明代码的开源许可证。 | `--license Apache-2.0` (ROS2默认)<br>`--license MIT`<br>`--license GPL-3.0` |
+| `--maintainer-name` | 维护者姓名。如果不填，会自动抓取你当前 Ubuntu 系统的用户名。 | `--maintainer-name "Your Name"` |
+| `--maintainer-email` | 维护者邮箱。 | `--maintainer-email "xxx@example.com"` |
+| `--description` | 功能包的一句话简介。 | `--description "Object detection node using YOLO"` |
+
+---
+
+### 💡 黄金组合示例
+
+在实际的机器人开发中，我们通常不会把所有参数都敲一遍，而是使用以下两种最典型的“黄金组合”模板：
+
+**模板 1：创建一个标准的 C++ 节点包 (例如做视觉识别或底层控制)**
+```bash
+ros2 pkg create cv_detection_node --build-type ament_cmake --dependencies rclcpp sensor_msgs cv_bridge --node-name detector --license Apache-2.0
+```
+*执行后：你直接去 `src/detector.cpp` 里写 OpenCV 和 ROS2 图像转换的逻辑，然后 `colcon build` 就能直接运行，完全不用管 CMake 怎么写。*
+
+**模板 2：创建一个标准的 Python 节点包 (例如做上层逻辑或深度学习推理)**
+```bash
+ros2 pkg create ai_decision_node --build-type ament_python --dependencies rclpy std_msgs geometry_msgs --node-name planner --license Apache-2.0
+```
+*执行后：直接打开生成的 `planner.py` 编写你的 Python 节点逻辑即可。*
 ---
 
 ### 8. 数据记录与回放 (rosbag2)
