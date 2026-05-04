@@ -134,3 +134,110 @@ ros2 service list: 这是 ROS 2 的基础指令，用于列出当前系统中所
 | (管道符): 这是 Linux 终端的通用操作，它把前一个命令输出的所有结果传递给下一个命令。
 
 grep parameter: 这是一个过滤工具，它会从接收到的长列表中只提取并显示包含 "parameter" 这个关键词的行。
+
+
+
+
+
+
+
+
+
+
+
+
+在ROS 2中，声明节点参数与在文件中配置参数、以及在`.srv`文件中定义服务，是**完全不同**的概念。
+
+这是一个在从ROS 1迁移到ROS 2，或者刚接触ROS 2时非常常见的疑惑。在ROS 2中，出于安全性和明确性的考虑，**参数默认必须先在代码中声明，然后才能使用或从外部文件中读取**。
+
+下面我为你详细梳理一下这三者的具体操作和区别：
+
+### 1. 怎么在节点中声明参数？（必须在代码中进行）
+
+无论你打算在终端里传参，还是通过文件传参，你通常都需要先在节点代码中“声明”它。
+
+**C++ 示例:**
+```cpp
+#include "rclcpp/rclcpp.hpp"
+
+class MyNode : public rclcpp::Node {
+public:
+  MyNode() : Node("my_node") {
+    // 声明一个名为 "my_param" 的字符串参数，默认值为 "default_value"
+    this->declare_parameter<std::string>("my_param", "default_value");
+
+    // 获取该参数的值
+    std::string param_value;
+    this->get_parameter("my_param", param_value);
+    RCLCPP_INFO(this->get_logger(), "参数值为: %s", param_value.c_str());
+  }
+};
+```
+
+**Python 示例:**
+```python
+import rclpy
+from rclpy.node import Node
+
+class MyNode(Node):
+    def __init__(self):
+        super().__init__('my_node')
+        # 声明参数，并设置默认值
+        self.declare_parameter('my_param', 'default_value')
+        
+        # 获取参数值
+        my_param_value = self.get_parameter('my_param').get_parameter_value().string_value
+        self.get_logger().info(f'参数值为: {my_param_value}')
+```
+
+---
+
+### 2. 在“文件”中声明（通常指 YAML 文件）
+
+你提到的“在文件中声明”，在 ROS 2 中通常指的是通过 **YAML 参数文件**来**覆盖**代码中的默认值。
+
+严格来说，这不叫“声明”，而是**“赋值”或“配置”**。代码中（如上所示）依然需要有 `declare_parameter` 的动作（除非你强制开启了允许未声明参数的选项，但这不推荐）。
+
+**YAML 文件示例 (`params.yaml`):**
+```yaml
+my_node: # 节点名称
+  ros__parameters:
+    my_param: "value_from_file" # 覆盖代码中的默认值
+```
+
+**如何使用：** 在启动节点时加载它：
+```bash
+ros2 run my_package my_node --ros-args --params-file params.yaml
+```
+
+---
+
+### 3. 在 `.srv` 文件中声明是什么？（完全无关的概念）
+
+这里需要纠正一个概念：**`.srv` 文件绝对不是用来声明节点参数的。**
+
+*   **节点参数 (Parameter)：** 是节点的全局配置变量（例如：相机的分辨率、机器人的最大速度等），属于**配置（Configuration）**。
+*   **`.srv` 文件：** 是用来定义 **ROS 2 服务 (Service) 通信接口**的数据结构的。它定义的是“客户端请求什么格式的数据，服务端回复什么格式的数据”，属于**通信协议（Communication Protocol）**。
+
+**`.srv` 文件示例 (`AddTwoInts.srv`):**
+```text
+int64 a
+int64 b
+---
+int64 sum
+```
+这个文件只是告诉 ROS 2 怎么生成代码来打包和解包网络数据，和节点本身的运行参数没有任何关系。
+
+---
+
+### 💡 核心总结对比
+
+为了让你更直观地理解，可以参考下表：
+
+| 载体 | 核心作用 | 什么时候使用？ |
+| :--- | :--- | :--- |
+| **代码 (C++/Python)** | **声明**参数的存在、类型，并设置兜底的默认值。 | 编写节点逻辑时，必须通过 `declare_parameter` 声明。 |
+| **YAML 文件 (`.yaml`)** | 在不重新编译代码的情况下，动态**修改（赋值）**参数。 | 部署机器人或调试时，用于批量加载特定环境的配置。 |
+| **服务文件 (`.srv`)** | 定义服务(Service)通信时的**请求和响应数据结构**。 | 当你的节点需要提供或调用 RPC 风格的同步通信服务时。 |
+
+简单来说：**参数**是你用来“调节”节点行为的旋钮，**代码**负责造出这个旋钮，**YAML文件**负责设定旋钮刻度，而 **`.srv` 文件**是节点和外界交流的语言字典，跟旋钮无关。
