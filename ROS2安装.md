@@ -147,3 +147,6 @@ sudo apt install ros-humble-mrpt2
 
 **总结你的下一步：**
 把 `ros2 bag` 的 MCAP 插件装上，把 `mrpt2` 暂时从你的必装清单里划掉。你目前的重心是在真车底盘（或者 RDK X5 这类板子）上先打通激光雷达和底盘里程计的数据通信吗？
+
+
+<img width="1623" height="861" alt="5386c264-92ab-4b9d-a233-d2a63be657ac" src="https://github.com/user-attachments/assets/9d5136c7-b34e-45fe-8655-53cfdb6572c3" />
