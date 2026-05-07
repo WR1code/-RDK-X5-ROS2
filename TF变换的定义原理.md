@@ -123,3 +123,91 @@ TF 不是一个集中式的服务器，而是完全分布式的。
 
 
 
+在机器人和 ROS 开发中，**“手眼坐标变换”（Hand-Eye Transformation）** 是一个极其核心的概念。简单来说，它是为了解决**“机器人看到的东西，如何转化为机器人能摸到的坐标”**这一问题。
+
+在 ROS 的 TF 系统中，手眼变换本质上是一个**静态 TF 变换（Static Transform）**，它连接了机器人的运动学系统（机械臂）和视觉感知系统（相机）。
+
+为了让你更直观地理解，我为你准备了一个交互式的 3D 演示。你可以切换不同的安装方式，并拖动滑块查看坐标系的联动关系。
+
+<GenerateWidget height="700px" component_placeholder_id="im_a140fdad2c1c8a16">
+```json
+{
+  "widgetSpec": {
+    "height": "700px",
+    "prompt": "Objective: Create a 3D interactive visualization of Eye-in-Hand and Eye-to-Hand TF transformations using Three.js to help user understand robotics coordinate frames.\nData State: initialValues = { mode: 'eye-in-hand', jointAngle: 0 }.\nStrategy: Standard Layout (Sims) with Three.js canvas taking main area and a control panel.\nInputs: \n1. Segmented control (or Radio buttons) to select mode: '眼在手上 (Eye-in-Hand)' vs '眼在手外 (Eye-to-Hand)'.\n2. Slider labeled '控制机械臂 (Move Robot Arm)' from -90 to 90 degrees.\nBehavior:\n- Render a 3D scene with a light grid floor. Add ambient and directional lighting.\n- Create a simple robot arm: A static Base (box), a vertical link, and a rotating horizontal Link (cylinder) driven by the slider, ending in an End-Effector.\n- Render RGB coordinate axes (Red=X, Green=Y, Blue=Z) at:\n  1. Base Frame (`base_link`)\n  2. End-Effector Frame (`tool0` or `end_effector`)\n  3. Camera Frame (`camera_link`)\n  4. Object Frame (`object_link` - placed statically on the floor).\n- Create a Camera object (a small box with a frustum/cone indicating field of view).\n- **Eye-in-Hand Logic**: If selected, attach the Camera geometrically to the End-Effector. When the slider moves, both the End-Effector frame and Camera frame move together. Draw a prominent static line/indicator between the End-Effector frame and Camera frame (representing the static hand-eye TF).\n- **Eye-to-Hand Logic**: If selected, detach the Camera and place it statically in the world, pointing at the workspace. When the slider moves, only the End-Effector moves. Draw a prominent static line/indicator between the Base frame and Camera frame (representing the static hand-eye TF).\n- Add a floating UI panel or text overlay in the scene that dynamically displays the current 'TF Tree (TF树)': \n  - For Eye-in-Hand: `base_link -> end_effector -> camera_link -> object_link`\n  - For Eye-to-Hand: `base_link -> camera_link -> object_link` (with a separate branch `base_link -> end_effector`).\n- Provide clear labels in Chinese."
+  }
+}
+```
+</GenerateWidget>
+
+### 为什么需要手眼坐标变换？
+
+想象一下你蒙着眼睛，另一个人（相机）在旁边看着桌子上的苹果，告诉你：“苹果在我的正前方 50 厘米处”。
+如果你想伸手去拿这个苹果，你必须知道**那个人的眼睛相对于你的肩膀在哪里**，否则你根本不知道该把手伸向哪个方向。
+
+在机器人系统中：
+*   **相机（眼）** 检测到目标（例如一个抓取物），输出目标在**相机坐标系（Camera Frame）**下的位置 $(x_c, y_c, z_c)$。
+*   **机械臂（手）** 接受指令，需要在**机器人基座坐标系（Base Frame）**下移动到目标位置 $(x_b, y_b, z_b)$。
+
+**手眼变换** 就是相机坐标系与机器人某个已知坐标系之间的转换矩阵（包含平移 $X, Y, Z$ 和旋转 $Roll, Pitch, Yaw$）。
+
+---
+
+### 两种常见的手眼配置（TF 树结构）
+
+根据相机的安装位置不同，手眼变换分为两种经典模式，这直接决定了你在 ROS 中如何发布这根 TF 线：
+
+#### 1. 眼在手上 (Eye-in-Hand)
+*   **物理安装**：相机直接固定在机械臂的末端执行器（法兰盘或夹爪）上。相机随着机械臂的运动而运动。
+*   **要求解的变换**：`末端执行器坐标系` 与 `相机坐标系` 之间的关系。
+*   **在 ROS TF 树中的表现**：
+    相机是末端执行器的子节点。只要机械臂动，相机的位姿 TF 就会自动跟着更新。
+    ```text
+    base_link (基座)
+      └── link_1 ... link_n
+            └── end_effector_link (机械臂末端)
+                  └── [手眼变换 static_tf] 
+                        └── camera_link (相机)
+                              └── object_link (目标物体)
+    ```
+*   **计算目标位置的 TF 链路**：要获取目标相对于基座的位置，TF 系统会自动计算：`base_link` $\rightarrow$ `end_effector` $\rightarrow$ `camera_link` $\rightarrow$ `object_link`。
+
+#### 2. 眼在手外 (Eye-to-Hand)
+*   **物理安装**：相机固定在机械臂外部的环境中（例如桌面上方、墙上或独立支架上）。相机静止不动，俯视机械臂的工作区域。
+*   **要求解的变换**：`机器人基座坐标系` 与 `相机坐标系` 之间的关系。
+*   **在 ROS TF 树中的表现**：
+    相机是机器人基座的直接子节点。无论机械臂怎么动，相机的 TF 坐标都不变。
+    ```text
+    base_link (基座)
+      ├── link_1 ... link_n
+      │     └── end_effector_link (机械臂末端)
+      │
+      └── [手眼变换 static_tf]
+            └── camera_link (相机)
+                  └── object_link (目标物体)
+    ```
+*   **计算目标位置的 TF 链路**：要获取目标相对于基座的位置，TF 系统只需计算：`base_link` $\rightarrow$ `camera_link` $\rightarrow$ `object_link`。
+
+---
+
+### 如何获取手眼变换矩阵？（手眼标定）
+
+我们无法用尺子精确测量这个变换（因为相机的光学中心包裹在镜头内部，无法直接触及），所以需要进行**手眼标定（Hand-Eye Calibration）**。
+
+标定过程通常如下：
+1.  在机械臂末端（Eye-to-Hand）或固定位置（Eye-in-Hand）放置一块标定板（如棋盘格、Aruco 码、AprilTag）。
+2.  控制机械臂以不同的姿态移动，拍摄多组照片。
+3.  记录每次拍照时，相机的检测数据（标定板在相机中的位姿）以及机械臂的运动学数据（末端在基座中的位姿）。
+4.  通过求解经典的方程 $AX = XB$（Tsai-Lenz 算法等），计算出未知的固定矩阵 $X$。
+
+### 在 ROS 中如何应用？
+
+一旦你通过标定算法算出了这个 $X$、$Y$、$Z$ 以及 $Yaw$、$Pitch$、$Roll$，你只需要在 ROS 的 Launch 文件中添加一个 `static_transform_publisher`。
+
+例如（眼在手上，假设测出相机在末端前方 5cm 处）：
+```bash
+ros2 run tf2_ros static_transform_publisher --x 0.05 --y 0 --z 0 --yaw 0 --pitch 0 --roll 0 --frame-id end_effector_link --child-frame-id camera_link
+```
+
+只要这个 TF 发布成功，你的机器人系统就被“打通”了。当你收到相机发布的目标物体坐标时，只需调用 ROS 的 `tf2` 库监听 `base_link` 到目标物体的变换，即可直接引导机械臂进行抓取。
+```
