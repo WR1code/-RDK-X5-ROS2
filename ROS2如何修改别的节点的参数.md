@@ -270,3 +270,129 @@ int main(int argc, char ** argv)
 2. **类型必须匹配：** ROS 2 参数是强类型的（Integer, Double, String, Boolean, Arrays 等）。如果你尝试将一个已声明为整数的参数覆盖为字符串，修改操作会被拒绝。
 3. **参数回调 (Parameter Callback)：** 即使你成功修改了目标节点的参数（服务返回 `successful=True`），目标节点是否会*实际根据新参数改变行为*，取决于目标节点是否注册了参数修改回调函数（`add_on_set_parameters_callback`）并在其中处理了业务逻辑更新。
 ```</ParamModifier>
+
+
+
+要让这两份代码真正跑起来并看到效果，我们需要构建一个完整的测试环境。
+
+由于 ROS 2 的安全机制，**目标节点必须先声明了参数，才能被外部修改**。为了方便测试，我们将使用 ROS 2 官方提供的一个万能测试节点 `parameter_blackboard`。这个节点的作用相当于一个“黑板”，允许我们随意向它写入任何参数。
+
+以下是针对 Python 和 C++ 代码的具体实操步骤。假设你的 ROS 2 工作空间位于 `~/ros2_ws`。
+
+---
+
+### 第一部分：如何运行 Python 代码
+
+#### 1. 创建 Python 功能包
+打开终端（Terminal 1），创建一个名为 `my_py_param_pkg` 的 Python 包：
+```bash
+cd ~/ros2_ws/src
+ros2 pkg create --build-type ament_python my_py_param_pkg
+```
+
+#### 2. 写入代码
+将上面的 Python 代码保存到 `~/ros2_ws/src/my_py_param_pkg/my_py_param_pkg/param_modifier.py` 文件中。
+
+#### 3. 配置启动入口 (setup.py)
+打开 `~/ros2_ws/src/my_py_param_pkg/setup.py`，找到 `entry_points` 字段，将其修改为：
+```python
+    entry_points={
+        'console_scripts': [
+            'py_modifier = my_py_param_pkg.param_modifier:main'
+        ],
+    },
+```
+
+#### 4. 编译工作空间
+```bash
+cd ~/ros2_ws
+colcon build --packages-select my_py_param_pkg
+source install/setup.bash
+```
+
+#### 5. 启动目标节点 (Terminal 2)
+新开一个终端（Terminal 2），启动官方的“黑板”节点。
+*关键点：我们通过 `--ros-args -r __node:=target_node` 将节点重命名为代码中期望的 `target_node`，并允许未声明的参数。*
+```bash
+source /opt/ros/humble/setup.bash  # 替换为你的ROS2版本，如 foxy/iron
+ros2 run demo_nodes_cpp parameter_blackboard --ros-args -r __node:=target_node -p allow_undeclared_parameters:=true
+```
+
+#### 6. 运行你的 Python 修改器 (Terminal 1)
+回到刚才编译包的终端（Terminal 1），运行代码：
+```bash
+ros2 run my_py_param_pkg py_modifier
+```
+**预期输出：** 你会看到终端打印出 `[INFO] [param_modifier_node]: 参数修改成功！`。
+
+#### 7. 验证结果 (Terminal 3)
+新开一个终端（Terminal 3），用命令行查看目标节点的参数是否真的被改了：
+```bash
+ros2 param get /target_node my_target_param
+```
+**预期输出：** `Integer value is: 42` (这正是我们在 Python 代码中设置的值)。
+
+---
+
+### 第二部分：如何运行 C++ 代码
+
+#### 1. 创建 C++ 功能包
+打开终端（Terminal 1），创建一个名为 `my_cpp_param_pkg` 的 C++ 包，并添加依赖：
+```bash
+cd ~/ros2_ws/src
+ros2 pkg create --build-type ament_cmake my_cpp_param_pkg --dependencies rclcpp rcl_interfaces
+```
+
+#### 2. 写入代码
+将上面的 C++ 代码保存到 `~/ros2_ws/src/my_cpp_param_pkg/src/param_modifier.cpp` 文件中。
+
+#### 3. 配置编译文件 (CMakeLists.txt)
+打开 `~/ros2_ws/src/my_cpp_param_pkg/CMakeLists.txt`，在 `find_package(rcl_interfaces REQUIRED)` 之后添加以下几行内容，告诉编译器如何生成可执行文件：
+
+```cmake
+add_executable(cpp_modifier src/param_modifier.cpp)
+ament_target_dependencies(cpp_modifier rclcpp rcl_interfaces)
+
+install(TARGETS
+  cpp_modifier
+  DESTINATION lib/${PROJECT_NAME}
+)
+```
+
+#### 4. 编译工作空间
+```bash
+cd ~/ros2_ws
+colcon build --packages-select my_cpp_param_pkg
+source install/setup.bash
+```
+
+#### 5. 启动目标节点 (Terminal 2)
+如果你刚才的 Terminal 2 里的 `parameter_blackboard` 还在运行，**不用关掉**，继续用它即可。如果你关了，请重新运行：
+```bash
+ros2 run demo_nodes_cpp parameter_blackboard --ros-args -r __node:=target_node -p allow_undeclared_parameters:=true
+```
+
+#### 6. 运行你的 C++ 修改器 (Terminal 1)
+回到 Terminal 1，运行 C++ 节点：
+```bash
+ros2 run my_cpp_param_pkg cpp_modifier
+```
+**预期输出：** 你会看到终端打印出 `[INFO] [param_modifier]: 参数修改成功！`（会打印两次，因为代码中同时修改了两个参数）。
+
+#### 7. 验证结果 (Terminal 3)
+在 Terminal 3 中，使用命令行检查这两个参数的值：
+```bash
+ros2 param get /target_node my_double_param
+ros2 param get /target_node my_string_param
+```
+**预期输出：** 
+分别显示 `Double value is: 3.14` 和 `String value is: hello_ros2`。
+
+---
+
+### 💡 核心逻辑总结
+
+通过这套流程你可以看出，跨节点修改参数是一个典型的 **C/S（客户端/服务端）架构** 交互：
+1. **Target Node**（如这里的 parameter_blackboard）是被动方，它启动了 Server，随时准备接收修改请求。
+2. **Modifier Node**（你的 Python/C++ 代码）是主动方，它作为 Client 发起修改请求。
+3. 两者依靠共同的通道名称 `/<node_name>/set_parameters` 进行握手和数据交换。
