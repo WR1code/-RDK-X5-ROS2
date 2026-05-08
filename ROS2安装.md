@@ -4,6 +4,8 @@
 这些是编译 ROS 2 工作空间（Workspace）和管理第三方依赖的基础。
 
 ```bash
+sudo apt install gazebo
+
 # 基础编译工具链
 sudo apt install build-essential cmake git
 
