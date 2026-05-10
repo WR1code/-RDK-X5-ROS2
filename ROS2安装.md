@@ -1,3 +1,5 @@
+<img width="1582" height="745" alt="b003908d-8226-4d0a-88f7-c7e32c3cc857" src="https://github.com/user-attachments/assets/7535a07b-f698-448d-a07e-dcfca014201f" />
+<img width="1582" height="745" alt="b003908d-8226-4d0a-88f7-c7e32c3cc857" src="https://github.com/user-attachments/assets/2c4e2297-c36a-4f35-94b1-239647ac891f" />
 搭建一个完整且能满足实际项目需求的 ROS 2 开发环境，仅仅安装一个 Desktop 核心包往往是不够的。为了覆盖从机器人建模、仿真、机器视觉到 SLAM 建图和自主导航的完整开发链路，以下是详细的必装包清单与分类整理（以 ROS 2 Humble 版本为例）：
 
 ### 1. 核心构建与环境管理工具
@@ -159,3 +161,4 @@ sudo apt install ros-humble-mrpt2
 
 <img width="1520" height="639" alt="8de8b75a-912e-4cc7-8adf-75bef91fa273" src="https://github.com/user-attachments/assets/9b1b17cc-e7bf-4361-9b00-0d8351c5242a" />
 
+<img width="1582" height="745" alt="b003908d-8226-4d0a-88f7-c7e32c3cc857" src="https://github.com/user-attachments/assets/306b587d-a25e-4128-9f0b-20a9f813f7b1" />
