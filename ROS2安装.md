@@ -162,3 +162,6 @@ sudo apt install ros-humble-mrpt2
 <img width="1520" height="639" alt="8de8b75a-912e-4cc7-8adf-75bef91fa273" src="https://github.com/user-attachments/assets/9b1b17cc-e7bf-4361-9b00-0d8351c5242a" />
 
 <img width="1582" height="745" alt="b003908d-8226-4d0a-88f7-c7e32c3cc857" src="https://github.com/user-attachments/assets/306b587d-a25e-4128-9f0b-20a9f813f7b1" />
+
+
+<img width="2209" height="912" alt="image" src="https://github.com/user-attachments/assets/4299ac55-6000-4606-b6d8-ed6279a60b34" />
