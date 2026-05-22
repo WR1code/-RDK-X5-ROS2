@@ -272,7 +272,7 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 ```
-
+execute_process(COMMAND chmod -R +x ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 ---
 
 ## 📂 6. 安装资源目录 (Launch, Config, Models)
