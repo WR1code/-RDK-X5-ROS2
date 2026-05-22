@@ -667,3 +667,66 @@ libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8a...)
 
 ⚠️ 危险信号：
 如果你看到某一行显示 not found，那就说明出大事了！你的程序运行必报错。这通常是因为你忘记 source 环境，或者某个依赖包没有安装
+
+
+
+不是一定要的。`--node-name` 这个参数是完全可选（选填）的。
+
+在 ROS 2 中，当你使用 `ros2 pkg create` 创建功能包时：
+
+* **如果不加 `--node-name**`：系统只会为你生成功能包的基础结构（`CMakeLists.txt`、`package.xml`、`src/` 文件夹等），里面是一个“空包”，不会自带任何预写好的节点源代码。
+* **如果加了 `--node-name**`：系统在创建完基础结构后，还会贴心地在 `src/` 目录下顺便帮你生成一个包含基础通信模板的源文件（比如 `est_node.cpp`），并且**自动在 `CMakeLists.txt` 里写好这个节点的编译和安装配置**。
+
+---
+
+## 💡 为什么在实际开发中，很多人**不加**这个参数？
+
+从你的命令来看，你正在创建一个名为 `gazebo_dataset_collector`（Gazebo数据采集器）的功能包，以下是为什么通常不建议在这里直接加 `--node-name` 的原因：
+
+### 1. 手动创建节点更灵活
+
+大多数 ROS 2 项目里，一个功能包（Package）往往包含**不止一个节点**。比如你的数据采集包，未来可能会有 `image_collector`（图像采集节点）、`laser_collector`（雷达采集节点）、`data_saver`（数据保存节点）等。
+一开始用命令行生成的默认节点名字，后期往往需要修改，反而不如自己直接在 `src/` 里写 `.cpp` 文件来得清晰。
+
+### 2. 避免 `--dependencies` 带来的混淆
+
+你的命令中同时指定了 `rclcpp`（C++ 依赖）和 `rclpy`（Python 依赖）。
+
+* 如果你加了 `--node-name`，因为你的 `--build-type` 是 `ament_cmake`（C++ 类型），系统只会硬生生帮你生成一个 **C++ 节点**。
+* 如果你打算在这个包里混合编写 C++ 和 Python 节点，命令行自动生成的 `CMakeLists.txt` 结构往往不够满足混合开发的需求，最后还是需要你手动去修改 `CMakeLists.txt`。
+
+---
+
+## 🛠️ 推荐的开发工作流
+
+针对你这个 Gazebo 数据采集的项目，更推荐的创建方式是：
+
+### 第一步：创建干净的功能包（不带节点名）
+
+```bash
+ros2 pkg create --build-type ament_cmake gazebo_dataset_collector --dependencies rclcpp std_msgs sensor_msgs
+
+```
+
+*(注：采数据集大概率会用到图像或雷达，顺手把 `sensor_msgs` 依赖也加上)*
+
+### 第二步：根据需要，手动编写和配置节点
+
+当你需要写第一个节点时：
+
+1. 直接在 `gazebo_dataset_collector/src/` 下新建一个 `collector_node.cpp`。
+2. 在 `CMakeLists.txt` 中手动添加你的节点编译规则：
+```cmake
+add_executable(collector_node src/collector_node.cpp)
+ament_target_dependencies(collector_node rclcpp std_msgs sensor_msgs)
+
+install(TARGETS
+  collector_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+```
+
+
+
+这种先建“空包”再按需手动添加节点的方式，代码结构会更可控，也更方便后期维护。
