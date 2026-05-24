@@ -1,0 +1,12 @@
+How to use
+Clone this repo.
+
+git clone https://github.com/AtsushiSakai/PythonRobotics.git
+Install the required libraries.
+
+using conda :
+
+conda env create -f requirements/environment.yml
+using pip :
+
+pip install -r requirements/requirements.txt
